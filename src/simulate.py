@@ -24,7 +24,7 @@ DUTY_MIN = 0.05
 DUTY_MAX = 0.90
 
 PO_STEP = 0.004
-IC_STEP = 0.003
+IC_STEP = 0.005
 
 DT = 0.10  # seconds per simulation step
 N_STEPS = 500  # 50 s total
