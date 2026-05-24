@@ -24,7 +24,7 @@ DUTY_MIN = 0.05
 DUTY_MAX = 0.90
 
 PO_STEP = 0.004
-IC_STEP = 0.003
+IC_STEP = 0.005
 
 DT = 0.10  # seconds per simulation step
 N_STEPS = 500  # 50 s total
@@ -270,7 +270,7 @@ def plot_scenario_comparison(scenario_name: str, df_po: pd.DataFrame, df_ic: pd.
     fig = plt.figure(figsize=(9, 5))
     plt.plot(df_po["time_s"], df_po["pv_voltage_v"], label="P&O")
     plt.plot(df_ic["time_s"], df_ic["pv_voltage_v"], label="Incremental Conductance")
-    plt.plot(df_po["time_s"], df_po["v_mp_ideal"], label="Ideal Vmp", linestyle="--")
+    #plt.plot(df_po["time_s"], df_po["v_mp_ideal"], label="Ideal Vmp", linestyle="--")
     plt.xlabel("Time (s)")
     plt.ylabel("PV Voltage (V)")
     plt.title(f"{scenario_name.title()} Scenario: PV Voltage")
