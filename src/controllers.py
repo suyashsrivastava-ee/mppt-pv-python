@@ -70,6 +70,10 @@ class IncrementalConductance:
     For a boost converter:
       - need higher PV voltage  => decrease duty
       - need lower PV voltage   => increase duty
+
+    Important:
+    The controller applies one small startup perturbation so it does not
+    get stuck at the initial operating point.
     """
 
     def __init__(
@@ -79,13 +83,15 @@ class IncrementalConductance:
         duty_min: float = 0.05,
         duty_max: float = 0.90,
         tolerance: float = 1e-4,
+        startup_direction: int = -1,
     ):
         self.step_size = step_size
         self.duty_min = duty_min
         self.duty_max = duty_max
         self.tolerance = tolerance
-        self.duty = _clip_duty(duty_init, duty_min, duty_max)
+        self.startup_direction = -1 if startup_direction < 0 else 1
 
+        self.duty = _clip_duty(duty_init, duty_min, duty_max)
         self.prev_voltage: Optional[float] = None
         self.prev_current: Optional[float] = None
 
@@ -95,25 +101,44 @@ class IncrementalConductance:
         self.prev_current = None
 
     def update(self, voltage: float, current: float) -> float:
+        # First measurement after reset:
+        # store it and apply one small perturbation so the system starts moving.
         if self.prev_voltage is None or self.prev_current is None:
             self.prev_voltage = voltage
             self.prev_current = current
+
+            self.duty = _clip_duty(
+                self.duty + self.startup_direction * self.step_size,
+                self.duty_min,
+                self.duty_max,
+            )
             return self.duty
 
         dV = voltage - self.prev_voltage
         dI = current - self.prev_current
 
-        if abs(dV) < 1e-9:
-            # At constant voltage, determine whether we are left or right of MPP.
-            if dI > 0:
+        eps_v = 1e-9
+        eps_i = 1e-9
+
+        if abs(dV) < eps_v:
+            # If voltage barely changed, use the sign of current change.
+            if abs(dI) < eps_i:
+                # Still no meaningful movement; keep nudging in startup direction.
+                self.duty = _clip_duty(
+                    self.duty + self.startup_direction * self.step_size,
+                    self.duty_min,
+                    self.duty_max,
+                )
+            elif dI > 0:
                 # Left of MPP -> increase PV voltage -> decrease duty
-                self.duty -= self.step_size
-            elif dI < 0:
+                self.duty = _clip_duty(self.duty - self.step_size, self.duty_min, self.duty_max)
+            else:
                 # Right of MPP -> decrease PV voltage -> increase duty
-                self.duty += self.step_size
+                self.duty = _clip_duty(self.duty + self.step_size, self.duty_min, self.duty_max)
+
         else:
             incremental_cond = dI / dV
-            instantaneous_cond = -current / max(voltage, 1e-9)
+            instantaneous_cond = -current / max(voltage, eps_v)
             error = incremental_cond - instantaneous_cond
 
             if abs(error) <= self.tolerance:
@@ -121,12 +146,11 @@ class IncrementalConductance:
                 pass
             elif error > 0:
                 # Left of MPP -> increase PV voltage -> decrease duty
-                self.duty -= self.step_size
+                self.duty = _clip_duty(self.duty - self.step_size, self.duty_min, self.duty_max)
             else:
                 # Right of MPP -> decrease PV voltage -> increase duty
-                self.duty += self.step_size
+                self.duty = _clip_duty(self.duty + self.step_size, self.duty_min, self.duty_max)
 
-        self.duty = _clip_duty(self.duty, self.duty_min, self.duty_max)
         self.prev_voltage = voltage
         self.prev_current = current
         return self.duty
