@@ -148,6 +148,34 @@ During the development of this simulation framework, two critical technical road
 
 ---
 
+## 🔌 Circuit-Level Hardware Validation (LTspice)
+
+To complement the high-level Python MPPT algorithms, an open-loop DC-DC Boost Converter stage was modeled and verified in LTspice. This serves as a validation layer to evaluate how physical power hardware responds to steady-state duty cycles.
+
+### System Specifications
+* **Input Voltage (Vin):** 18V DC (Nominal PV output panel voltage)
+* **Switching Frequency (fsw):** 50 kHz (Period T = 20 µs) driven through a 10 Ω gate resistor
+* **Power Electronics:** IRF530 N-channel MOSFET, SS24 Schottky Diode
+* **Passives & Load:** Inductor L = 220 µH, Capacitor C = 470 µF, Load R = 20 Ω
+
+### Parametric Sweep Analysis
+The converter was analyzed using a transient simulation running for 20 ms (`.tran 20ms`) while concurrently stepping through four discrete duty cycles (D = 0.25, 0.35, 0.45, 0.55) using the `.step` directive.
+
+![LTspice Validation Results](results/ltspice_validation.png)
+
+### Key Engineering Insights:
+
+1. **Continuous Conduction Mode (CCM):** Zooming into the final 40 µs steady-state window confirms a clean, triangular inductor current ripple (IL). The current never drops to zero, validating stable CCM operation across all design parameters.
+2. **Real-World Conduction Losses:** While output voltage scales dynamically with the duty cycle, the simulation models realistic component non-idealities. At D = 0.55, an approximate 2V drop from the ideal 40V target is observed, primarily driven by the MOSFET's Rds(on) conduction tracking and the diode's dynamic forward voltage drop (Vf).
+
+The circuit output settles tightly around the values predicted by the fundamental boost converter relationship:
+
+$$
+V_{\text{out}} = \frac{V_{\text{in}}}{1 - D}
+$$
+
+---
+
 ## 📄 License
 
 Copyright (c) 2026 Suyash Srivastava
